@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三国战记 - Three Kingdoms Battle</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Arial', sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+            border: 4px solid #e94560;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+        }
+        #gameCanvas {
+            display: block;
+            background: #0f0f23;
+        }
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            font-size: 24px;
+            z-index: 100;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="loadingScreen">加载中...</div>
+    </div>
+    
+    <!-- 核心模块 -->
+    <script src="core/Input.js"></script>
+    <script src="core/GameLoop.js"></script>
+    <script src="core/Scene.js"></script>
+    
+    <!-- 实体模块 -->
+    <script src="entities/Skill.js"></script>
+    <script src="entities/Player.js"></script>
+    <script src="entities/Enemy.js"></script>
+    
+    <!-- AI 模块 -->
+    <script src="ai/EnemyAI.js"></script>
+    
+    <!-- UI 模块 -->
+    <script src="ui/HUD.js"></script>
+    
+    <!-- 游戏主入口 -->
+    <script src="game.js"></script>
+</body>
+</html>
