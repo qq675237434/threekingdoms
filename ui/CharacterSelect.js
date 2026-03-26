@@ -192,18 +192,29 @@ class CharacterSelect {
         // 创建玩家
         if (this.game) {
             this.game.createPlayerWithCharacter(character);
+            // 设置游戏状态为 playing
+            this.game.gameState = 'playing';
         }
         
-        // 隐藏选择界面，开始游戏
+        // 隐藏选择界面
         this.hide();
         
+        // 显示消息
         if (this.game && this.game.hud) {
             this.game.hud.showMessage(`选择${character.name}`, character.color);
         }
         
-        // 触发游戏开始
-        if (this.game && this.game.onStartGame) {
-            this.game.onStartGame();
+        // 开始游戏
+        if (this.game) {
+            console.log('角色已选择，开始游戏...');
+            // 添加玩家到场景
+            if (this.game.player) {
+                this.game.addPlayerToScene();
+            }
+            // 开始第一关
+            if (this.game.levelManager) {
+                this.game.levelManager.startLevel(0);
+            }
         }
     }
     

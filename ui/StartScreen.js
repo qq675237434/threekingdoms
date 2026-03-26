@@ -343,8 +343,12 @@ class StartScreen {
         console.log('显示角色选择');
         this.isVisible = false;
         
-        if (this.game && this.game.characterSelect) {
-            this.game.characterSelect.show();
+        if (this.game) {
+            this.game.gameState = 'select';
+            if (this.game.characterSelect) {
+                this.game.characterSelect.show();
+                console.log('角色选择界面已显示，等待玩家选择...');
+            }
         }
     }
     

@@ -275,16 +275,26 @@ class Game {
      * 开始游戏
      */
     startGame() {
-        console.log('开始游戏');
+        console.log('开始游戏 (startGame)');
         this.gameState = 'playing';
-        
-        // 创建默认玩家（如果没有选择角色）
-        if (!this.player) {
-            this.createPlayerWithCharacter({
-                id: 'guanyu',
-                name: '关羽',
-                stats: { health: 120, attack: 18, defense: 8, speed: 180 }
-            });
+        this.startGameInternal();
+    }
+    
+    /**
+     * 角色选择后开始游戏
+     */
+    onStartGame() {
+        console.log('开始游戏 (onStartGame - 角色选择后)');
+        this.gameState = 'playing';
+        this.startGameInternal();
+    }
+    
+    /**
+     * 开始游戏内部实现
+     */
+    startGameInternal() {
+        // 添加玩家到场景
+        if (this.player) {
             this.addPlayerToScene();
         }
         
