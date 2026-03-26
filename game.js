@@ -567,6 +567,23 @@ class Game {
      */
     startGameInternal() {
         console.log('🎮 开始游戏内部流程...');
+        this.executeStartGame();
+    }
+    
+    /**
+     * 角色选择后开始游戏（StartScreen 调用）
+     */
+    onStartGame() {
+        console.log('🎮 开始游戏 (onStartGame)');
+        this.executeStartGame();
+    }
+    
+    /**
+     * 执行游戏启动流程
+     */
+    executeStartGame() {
+        // 设置游戏状态
+        this.gameState = 'playing';
         
         // 添加玩家到场景
         if (this.player) {
