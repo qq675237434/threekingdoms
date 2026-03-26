@@ -98,6 +98,13 @@ class Player {
         this.isDead = false;
         this.facing = config.facing || 1;
         
+        // 无敌状态（用于道具效果）
+        this.isInvincible = false;
+        this.invincibleTimer = 0;
+        
+        // 物品栏
+        this.inventory = null; // 由 game.js 初始化
+        
         // 动画系统
         this.currentFrame = 0;
         this.animationTimer = 0;
@@ -144,6 +151,14 @@ class Player {
      */
     update(deltaTime, input) {
         if (this.isDead) return;
+        
+        // 更新无敌状态
+        if (this.isInvincible) {
+            this.invincibleTimer -= deltaTime;
+            if (this.invincibleTimer <= 0) {
+                this.isInvincible = false;
+            }
+        }
         
         this.skillManager.update(deltaTime);
         this.handleInput(input, deltaTime);
@@ -341,6 +356,13 @@ class Player {
      */
     render(ctx) {
         ctx.save();
+        
+        // 无敌效果（金色光芒）
+        if (this.isInvincible) {
+            ctx.shadowColor = '#ffd700';
+            ctx.shadowBlur = 20;
+            ctx.globalAlpha = 0.7 + Math.sin(Date.now() / 100) * 0.3;
+        }
         
         // 受击闪白
         if (this.isHit) {
