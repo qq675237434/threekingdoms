@@ -150,6 +150,23 @@ class CharacterSelect {
     }
     
     /**
+     * 处理键盘输入
+     */
+    handleInput(e) {
+        if (!this.isVisible) return;
+        
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+            this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+            console.log('选择角色:', this.selectedIndex);
+        } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+            this.selectedIndex = Math.min(this.characters.length - 1, this.selectedIndex + 1);
+            console.log('选择角色:', this.selectedIndex);
+        } else if (e.code === 'KeyJ' || e.code === 'Enter' || e.code === 'Space') {
+            this.confirmSelection();
+        }
+    }
+    
+    /**
      * 显示角色选择界面
      */
     show() {

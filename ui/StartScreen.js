@@ -292,6 +292,23 @@ class StartScreen {
     }
     
     /**
+     * 处理键盘输入
+     */
+    handleInput(e) {
+        if (!this.isVisible) return;
+        
+        if (e.code === 'ArrowUp' || e.code === 'KeyW') {
+            this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+            console.log('菜单选择:', this.selectedIndex);
+        } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+            this.selectedIndex = Math.min(this.menuItems.length - 1, this.selectedIndex + 1);
+            console.log('菜单选择:', this.selectedIndex);
+        } else if (e.code === 'KeyJ' || e.code === 'Enter' || e.code === 'Space') {
+            this.selectMenuItem();
+        }
+    }
+    
+    /**
      * 选择菜单项
      */
     selectMenuItem() {
