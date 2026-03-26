@@ -229,11 +229,34 @@ class StartScreen {
         this.ctx.font = '24px Arial';
         this.ctx.fillText('Three Kingdoms Battle', titleX, titleY + 50);
         
-        // 版本信息
+        // 版本信息 - 明确提示空格键
         const isBlinking = Math.floor(this.blinkTimer / this.blinkInterval) % 2 === 0;
-        this.ctx.fillStyle = isBlinking ? '#95a5a6' : '#7f8c8d';
-        this.ctx.font = '16px Arial';
-        this.ctx.fillText('按任意键开始', titleX, titleY + 100);
+        
+        // 绘制空格键图示
+        const keyX = titleX - 80;
+        const keyY = titleY + 85;
+        const keyWidth = 160;
+        const keyHeight = 30;
+        
+        // 按键背景
+        this.ctx.fillStyle = isBlinking ? 'rgba(243, 156, 18, 0.3)' : 'rgba(243, 156, 18, 0.1)';
+        this.ctx.strokeStyle = '#f39c12';
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.roundRect(keyX, keyY, keyWidth, keyHeight, 5);
+        this.ctx.fill();
+        this.ctx.stroke();
+        
+        // 按键文字
+        this.ctx.fillStyle = '#f39c12';
+        this.ctx.font = 'bold 16px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('SPACE', titleX, titleY + 107);
+        
+        // 下方提示文字
+        this.ctx.fillStyle = '#95a5a6';
+        this.ctx.font = '14px Arial';
+        this.ctx.fillText('或点击屏幕开始', titleX, titleY + 145);
     }
     
     /**

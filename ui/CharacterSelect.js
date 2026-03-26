@@ -79,8 +79,9 @@ class CharacterSelect {
         // 选择状态
         this.selectedIndex = 1; // 默认选中中间的关羽
         this.confirmTimer = 0;
-        this.confirmDuration = 0.5; // 确认需要按住 0.5 秒
+        this.confirmDuration = 0.3; // 确认需要按住 0.3 秒（优化：从 0.5 秒缩短）
         this.isConfirming = false;
+        this.hoverScale = 1; // 悬停缩放效果
     }
     
     /**
@@ -117,7 +118,10 @@ class CharacterSelect {
             for (let i = 0; i < this.characters.length; i++) {
                 const cardX = startX + i * (cardWidth + gap);
                 if (mouseX >= cardX && mouseX <= cardX + cardWidth) {
-                    this.hoveredCharacter = i;
+                    if (this.hoveredCharacter !== i) {
+                        this.hoveredCharacter = i;
+                        this.hoverScale = 1.05; // 悬停时放大
+                    }
                     break;
                 }
             }
@@ -242,6 +246,15 @@ class CharacterSelect {
     update(deltaTime) {
         if (!this.isVisible) return;
         
+        // 悬停缩放动画
+        if (this.hoveredCharacter !== null && this.hoverScale < 1.05) {
+            this.hoverScale += deltaTime * 2;
+            if (this.hoverScale > 1.05) this.hoverScale = 1.05;
+        } else if (this.hoveredCharacter === null && this.hoverScale > 1) {
+            this.hoverScale -= deltaTime * 2;
+            if (this.hoverScale < 1) this.hoverScale = 1;
+        }
+        
         if (this.isConfirming) {
             this.confirmTimer -= deltaTime;
             if (this.confirmTimer <= 0) {
@@ -303,14 +316,35 @@ class CharacterSelect {
             const isSelected = index === this.selectedIndex;
             const isHovered = index === this.hoveredCharacter;
             
-            // 卡片背景
-            this.ctx.fillStyle = isSelected ? '#34495e' : isHovered ? '#2c3e50' : '#1a252f';
+            // 悬停效果：缩放卡片
+            if (isHovered || isSelected) {
+                const scale = isHovered ? this.hoverScale : 1;
+                const offsetX = (cardWidth - cardWidth * scale) / 2;
+                const offsetY = (cardHeight - cardHeight * scale) / 2;
+                
+                this.ctx.save();
+                this.ctx.translate(x + cardWidth / 2, cardY + cardHeight / 2);
+                this.ctx.scale(scale, scale);
+                this.ctx.translate(-x - cardWidth / 2, -cardY - cardHeight / 2);
+            }
+            
+            // 卡片背景（悬停时更亮）
+            this.ctx.fillStyle = isSelected ? '#34495e' : isHovered ? '#34495e' : '#1a252f';
             this.ctx.fillRect(x, cardY, cardWidth, cardHeight);
             
-            // 边框
-            this.ctx.strokeStyle = isSelected ? char.color : '#555';
-            this.ctx.lineWidth = isSelected ? 4 : 2;
+            // 边框（悬停和选中时高亮）
+            this.ctx.strokeStyle = isSelected ? char.color : isHovered ? char.color : '#555';
+            this.ctx.lineWidth = isSelected ? 4 : isHovered ? 3 : 2;
             this.ctx.strokeRect(x, cardY, cardWidth, cardHeight);
+            
+            // 悬停光晕效果
+            if (isHovered && !isSelected) {
+                this.ctx.shadowColor = char.color;
+                this.ctx.shadowBlur = 15;
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                this.ctx.strokeRect(x, cardY, cardWidth, cardHeight);
+                this.ctx.shadowBlur = 0;
+            }
             
             // 角色名称
             this.ctx.fillStyle = char.color;
@@ -336,6 +370,11 @@ class CharacterSelect {
                 this.ctx.fillStyle = '#f39c12';
                 this.ctx.font = 'bold 16px Arial';
                 this.ctx.fillText('按 J 确认', x + cardWidth / 2, cardY + cardHeight - 30);
+            }
+            
+            // 恢复悬停缩放
+            if (isHovered || isSelected) {
+                this.ctx.restore();
             }
         });
     }

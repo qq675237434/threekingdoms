@@ -2,14 +2,22 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>三国战记 - Three Kingdoms Battle</title>
+    <meta name="description" content="三国题材横版动作游戏">
+    <meta name="theme-color" content="#1a1a2e">
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
+        
         body {
             display: flex;
             justify-content: center;
@@ -17,16 +25,25 @@
             min-height: 100vh;
             background: #1a1a2e;
             font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            touch-action: none;
         }
+        
         #gameContainer {
             position: relative;
             border: 4px solid #e94560;
             box-shadow: 0 0 20px rgba(233, 69, 96, 0.5);
+            max-width: 100vw;
+            max-height: 100vh;
         }
+        
         #gameCanvas {
             display: block;
             background: #0f0f23;
+            max-width: 100%;
+            max-height: 100%;
         }
+        
         #loadingScreen {
             position: absolute;
             top: 0;
@@ -34,52 +51,269 @@
             width: 100%;
             height: 100%;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             color: #fff;
             font-size: 24px;
             z-index: 100;
+            transition: opacity 0.3s ease;
         }
-        .hidden {
-            display: none !important;
+        
+        #loadingScreen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #e94560;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 10px;
+        }
+        
+        /* 移动端适配 */
+        @media (max-width: 800px) {
+            #gameCanvas {
+                width: 100vw;
+                height: auto;
+            }
+            
+            #gameContainer {
+                border-width: 2px;
+            }
+        }
+        
+        /* Canvas 不支持时的回退样式 */
+        .no-canvas-support {
+            display: none;
+            padding: 40px;
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 200;
+        }
+        
+        .no-canvas-support h2 {
+            margin-bottom: 15px;
+        }
+        
+        .no-canvas-support p {
+            font-size: 14px;
+            line-height: 1.6;
         }
     </style>
+    
+    <!-- 浏览器检测和 Canvas 回退 -->
+    <script>
+        (function() {
+            // 检测 Canvas 支持
+            function supportsCanvas() {
+                try {
+                    const canvas = document.createElement('canvas');
+                    return !!(canvas.getContext && canvas.getContext('2d'));
+                } catch (e) {
+                    return false;
+                }
+            }
+            
+            // 检测 requestAnimationFrame
+            function supportsRAF() {
+                return !!(window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame);
+            }
+            
+            // 检测本地存储
+            function supportsLocalStorage() {
+                try {
+                    return 'localStorage' in window && window.localStorage !== null;
+                } catch (e) {
+                    return false;
+                }
+            }
+            
+            // 存储检测结果
+            window.browserSupport = {
+                canvas: supportsCanvas(),
+                raf: supportsRAF(),
+                localStorage: supportsLocalStorage(),
+                isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+            };
+            
+            // 如果不支持 Canvas，显示回退内容
+            if (!window.browserSupport.canvas) {
+                document.addEventListener('DOMContentLoaded', function() {
+                    const fallback = document.createElement('div');
+                    fallback.className = 'no-canvas-support';
+                    fallback.innerHTML = `
+                        <h2>⚠️ 浏览器不支持</h2>
+                        <p>您的浏览器不支持 HTML5 Canvas，无法运行此游戏。</p>
+                        <p>请使用以下现代浏览器：</p>
+                        <ul style="text-align:left;margin:15px 0;">
+                            <li>Chrome 60+</li>
+                            <li>Firefox 55+</li>
+                            <li>Safari 11+</li>
+                            <li>Edge 79+</li>
+                        </ul>
+                    `;
+                    document.body.insertBefore(fallback, document.body.firstChild);
+                    fallback.style.display = 'block';
+                });
+            }
+        })();
+    </script>
 </head>
 <body>
     <div id="gameContainer">
         <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div id="loadingScreen">加载中...<br><span style="font-size:14px;color:#aaa;">按 F12 查看控制台</span></div>
+        <div id="loadingScreen">
+            <div class="loading-spinner"></div>
+            <div>加载中...</div>
+            <div class="loading-text">按 F12 查看控制台</div>
+            <div id="loadingProgress" style="margin-top:15px;font-size:12px;color:#666;"></div>
+        </div>
     </div>
     
-    <!-- 调试工具 -->
-    <script src="debug.js"></script>
+    <!-- 模块加载错误处理 -->
+    <script>
+        // 加载进度跟踪
+        window.loadingModules = {
+            loaded: 0,
+            total: 0,
+            errors: []
+        };
+        
+        // 加载超时处理
+        window.moduleLoadTimeout = 10000; // 10 秒超时
+        
+        // 模块加载错误处理
+        function handleModuleError(moduleName, error) {
+            console.error(`模块加载失败：${moduleName}`, error);
+            window.loadingModules.errors.push({ module: moduleName, error: error.message });
+            
+            // 显示错误提示
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.innerHTML = `
+                    <div style="color:#e74c3c;font-size:18px;margin-bottom:20px;">❌ 加载失败</div>
+                    <div style="color:#fff;font-size:14px;">模块：${moduleName}</div>
+                    <div style="color:#aaa;font-size:12px;margin-top:10px;">${error.message}</div>
+                    <div style="color:#aaa;font-size:12px;margin-top:20px;">请刷新页面重试</div>
+                `;
+            }
+        }
+        
+        // 更新加载进度
+        function updateLoadingProgress(moduleName) {
+            window.loadingModules.loaded++;
+            const progress = document.getElementById('loadingProgress');
+            if (progress) {
+                progress.textContent = `已加载：${window.loadingModules.loaded}/${window.loadingModules.total}`;
+            }
+        }
+        
+        // 全局错误处理
+        window.addEventListener('error', function(e) {
+            if (e.target && e.target.tagName === 'SCRIPT') {
+                handleModuleError(e.target.src, new Error('Script load failed'));
+            }
+        });
+        
+        // 加载超时检测
+        setTimeout(function() {
+            if (window.loadingModules.loaded < window.loadingModules.total) {
+                handleModuleError('timeout', new Error('模块加载超时'));
+            }
+        }, window.moduleLoadTimeout);
+    </script>
     
-    <!-- 核心模块 -->
-    <script src="core/Input.js"></script>
-    <script src="core/GameLoop.js"></script>
-    <script src="core/Scene.js"></script>
+    <!-- 核心模块（按依赖顺序加载） -->
+    <script src="debug.js" onerror="handleModuleError('debug.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <script src="core/Input.js" onerror="handleModuleError('Input.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <script src="core/GameLoop.js" onerror="handleModuleError('GameLoop.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <script src="core/Scene.js" onerror="handleModuleError('Scene.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
     
     <!-- 实体模块 -->
-    <script src="entities/Skill.js"></script>
-    <script src="entities/Player.js"></script>
-    <script src="entities/Enemy.js"></script>
+    <script src="entities/Skill.js" onerror="handleModuleError('Skill.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <script src="entities/Player.js" onerror="handleModuleError('Player.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <script src="entities/Enemy.js" onerror="handleModuleError('Enemy.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
     
     <!-- AI 模块 -->
-    <script src="ai/EnemyAI.js"></script>
+    <script src="ai/EnemyAI.js" onerror="handleModuleError('EnemyAI.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
     
     <!-- 关卡系统 -->
-    <script src="levels/LevelManager.js"></script>
+    <script src="levels/LevelManager.js" onerror="handleModuleError('LevelManager.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
     
     <!-- 系统模块 -->
-    <script src="systems/ComboSystem.js"></script>
+    <script src="systems/ComboSystem.js" onerror="handleModuleError('ComboSystem.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
     
     <!-- UI 模块 -->
-    <script src="ui/HUD.js"></script>
-    <script src="ui/StartScreen.js"></script>
-    <script src="ui/CharacterSelect.js"></script>
+    <script src="ui/HUD.js" onerror="handleModuleError('HUD.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <script src="ui/StartScreen.js" onerror="handleModuleError('StartScreen.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <script src="ui/CharacterSelect.js" onerror="handleModuleError('CharacterSelect.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
     
     <!-- 游戏主入口 -->
-    <script src="game.js"></script>
+    <script src="game.js" onerror="handleModuleError('game.js', event)"></script>
+    <script>updateLoadingProgress(); window.loadingModules.total++;</script>
+    
+    <!-- 初始化检查 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查所有模块是否加载成功
+            const checkInit = setInterval(function() {
+                if (window.loadingModules.loaded >= window.loadingModules.total) {
+                    clearInterval(checkInit);
+                    
+                    if (window.loadingModules.errors.length > 0) {
+                        console.error('以下模块加载失败:', window.loadingModules.errors);
+                    }
+                    
+                    // 检查游戏是否已初始化
+                    if (!window.game) {
+                        console.error('游戏实例创建失败');
+                    }
+                }
+            }, 100);
+            
+            // 移动端触摸控制提示
+            if (window.browserSupport && window.browserSupport.isMobile) {
+                console.log('移动端设备 detected，建议使用虚拟按键');
+            }
+        });
+    </script>
 </body>
 </html>

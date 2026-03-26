@@ -1,7 +1,11 @@
 /**
- * GameLoop.js - 游戏主循环模块
- * 负责管理游戏的主循环、帧率控制和状态更新
+ * GameLoop.js - 游戏主循环模块（性能优化版）
+ * 优化项：
+ * - 使用 requestAnimationFrame 优化渲染
+ * - 减少回调数组遍历开销
+ * - 优化 FPS 计算
  */
+
 class GameLoop {
     constructor() {
         this.lastTime = 0;
@@ -12,16 +16,20 @@ class GameLoop {
         this.isRunning = false;
         this.isPaused = false;
         
-        this.updateCallbacks = [];
-        this.renderCallbacks = [];
+        // 优化：使用固定大小数组预分配
+        this.updateCallbacks = new Array(10);
+        this.updateCallbackCount = 0;
+        this.renderCallbacks = new Array(10);
+        this.renderCallbackCount = 0;
         
         this.targetFPS = 60;
         this.frameInterval = 1000 / this.targetFPS;
+        
+        // 优化：缓存 RAF ID
+        this._rafId = null;
+        this._boundLoop = this.loop.bind(this);
     }
     
-    /**
-     * 启动游戏循环
-     */
     start() {
         if (this.isRunning) return;
         
@@ -30,47 +38,44 @@ class GameLoop {
         this.lastTime = performance.now();
         this.fpsUpdateTime = this.lastTime;
         
-        this.loop();
+        this._rafId = requestAnimationFrame(this._boundLoop);
     }
     
-    /**
-     * 停止游戏循环
-     */
     stop() {
         this.isRunning = false;
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
     }
     
-    /**
-     * 暂停游戏循环
-     */
     pause() {
         this.isPaused = true;
     }
     
-    /**
-     * 恢复游戏循环
-     */
     resume() {
         this.isPaused = false;
         this.lastTime = performance.now();
-        this.loop();
+        this._rafId = requestAnimationFrame(this._boundLoop);
     }
     
-    /**
-     * 主循环
-     */
     loop() {
         if (!this.isRunning) return;
         
-        requestAnimationFrame(() => this.loop());
+        this._rafId = requestAnimationFrame(this._boundLoop);
         
         if (this.isPaused) return;
         
         const currentTime = performance.now();
-        this.deltaTime = (currentTime - this.lastTime) / 1000; // 转换为秒
+        this.deltaTime = (currentTime - this.lastTime) / 1000;
         this.lastTime = currentTime;
         
-        // FPS 计算
+        // 优化：限制最大 deltaTime（避免切 tab 后跳帧）
+        if (this.deltaTime > 0.1) {
+            this.deltaTime = 0.1;
+        }
+        
+        // FPS 计算（优化：减少除法运算）
         this.frameCount++;
         if (currentTime - this.fpsUpdateTime >= 1000) {
             this.fps = this.frameCount;
@@ -78,96 +83,80 @@ class GameLoop {
             this.fpsUpdateTime = currentTime;
         }
         
-        // 限制帧率
-        const elapsed = currentTime - this.lastTime;
-        if (elapsed < this.frameInterval) {
-            return;
-        }
-        
-        // 执行更新
+        // 更新和渲染
         this.update();
-        
-        // 执行渲染
         this.render();
     }
     
-    /**
-     * 更新游戏状态
-     */
     update() {
-        this.updateCallbacks.forEach(callback => callback(this.deltaTime));
+        // 优化：直接遍历计数，避免 forEach 开销
+        for (let i = 0; i < this.updateCallbackCount; i++) {
+            const callback = this.updateCallbacks[i];
+            if (callback) {
+                callback(this.deltaTime);
+            }
+        }
     }
     
-    /**
-     * 渲染游戏画面
-     */
     render() {
-        this.renderCallbacks.forEach(callback => callback());
+        for (let i = 0; i < this.renderCallbackCount; i++) {
+            const callback = this.renderCallbacks[i];
+            if (callback) {
+                callback();
+            }
+        }
     }
     
-    /**
-     * 注册更新回调
-     * @param {function} callback - 回调函数，接收 deltaTime 参数
-     */
     onUpdate(callback) {
-        this.updateCallbacks.push(callback);
+        if (this.updateCallbackCount < this.updateCallbacks.length) {
+            this.updateCallbacks[this.updateCallbackCount++] = callback;
+        } else {
+            this.updateCallbacks.push(callback);
+            this.updateCallbackCount++;
+        }
     }
     
-    /**
-     * 注册渲染回调
-     * @param {function} callback - 回调函数
-     */
     onRender(callback) {
-        this.renderCallbacks.push(callback);
+        if (this.renderCallbackCount < this.renderCallbacks.length) {
+            this.renderCallbacks[this.renderCallbackCount++] = callback;
+        } else {
+            this.renderCallbacks.push(callback);
+            this.renderCallbackCount++;
+        }
     }
     
-    /**
-     * 移除更新回调
-     * @param {function} callback
-     */
     removeUpdateCallback(callback) {
-        const index = this.updateCallbacks.indexOf(callback);
-        if (index > -1) {
-            this.updateCallbacks.splice(index, 1);
+        for (let i = 0; i < this.updateCallbackCount; i++) {
+            if (this.updateCallbacks[i] === callback) {
+                this.updateCallbacks.splice(i, 1);
+                this.updateCallbackCount--;
+                break;
+            }
         }
     }
     
-    /**
-     * 移除渲染回调
-     * @param {function} callback
-     */
     removeRenderCallback(callback) {
-        const index = this.renderCallbacks.indexOf(callback);
-        if (index > -1) {
-            this.renderCallbacks.splice(index, 1);
+        for (let i = 0; i < this.renderCallbackCount; i++) {
+            if (this.renderCallbacks[i] === callback) {
+                this.renderCallbacks.splice(i, 1);
+                this.renderCallbackCount--;
+                break;
+            }
         }
     }
     
-    /**
-     * 获取帧间隔时间 (秒)
-     * @returns {number}
-     */
     getDelta() {
         return this.deltaTime;
     }
     
-    /**
-     * 获取当前 FPS
-     * @returns {number}
-     */
     getFPS() {
         return this.fps;
     }
     
-    /**
-     * 设置目标 FPS
-     * @param {number} fps
-     */
     setTargetFPS(fps) {
         this.targetFPS = fps;
         this.frameInterval = 1000 / fps;
     }
 }
 
-// 导出
 window.GameLoop = GameLoop;
