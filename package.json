@@ -1,0 +1,28 @@
+{
+  "name": "threekingdoms",
+  "version": "1.0.0",
+  "description": "三国战记 - HTML5 Canvas 横版街机游戏",
+  "main": "game.js",
+  "scripts": {
+    "test": "node test/test.js",
+    "test:e2e": "echo 'Open test/e2e.html in browser'",
+    "start": "npx http-server -p 8080",
+    "serve": "npx http-server -p 8080 -c-1"
+  },
+  "keywords": [
+    "game",
+    "html5",
+    "canvas",
+    "three-kingdoms",
+    "arcade"
+  ],
+  "author": "Codex",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qq675237434/threekingdoms.git"
+  }
+}

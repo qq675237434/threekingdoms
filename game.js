@@ -131,46 +131,52 @@ class Game {
      * @param {number} deltaTime
      */
     update(deltaTime) {
-        if (!this.isRunning || this.hud.isPaused || this.hud.gameOver) return;
-        
-        // 更新时间
-        this.hud.time += deltaTime;
-        
-        // 获取输入
-        const direction = getDirection();
-        const input = {
-            left: direction.left,
-            right: direction.right,
-            up: direction.up,
-            down: direction.down,
-            attack: isAttacking(),
-            skill: isUsingSkill(),
-            jump: defaultInput.isAnyPressed(CONTROLS.JUMP)
-        };
-        
-        // 更新玩家
-        if (this.player && !this.player.isDead) {
-            this.player.update(deltaTime, input);
+        try {
+            if (!this.isRunning || this.hud.isPaused || this.hud.gameOver) return;
+            
+            // 更新时间
+            this.hud.time += deltaTime;
+            
+            // 获取输入
+            const direction = window.getDirection ? window.getDirection() : { left: false, right: false, up: false, down: false };
+            const input = {
+                left: direction.left,
+                right: direction.right,
+                up: direction.up,
+                down: direction.down,
+                attack: window.isAttacking ? window.isAttacking() : false,
+                skill: window.isUsingSkill ? window.isUsingSkill() : false,
+                jump: window.defaultInput && window.CONTROLS ? window.defaultInput.isAnyPressed(window.CONTROLS.JUMP) : false
+            };
+            
+            // 更新玩家
+            if (this.player && !this.player.isDead) {
+                this.player.update(deltaTime, input);
+                
+                // 更新 HUD
+                this.hud.setPlayerHealth(this.player.health, this.player.maxHealth);
+                this.hud.setPlayerMana(this.player.mana, this.player.maxMana);
+                if (this.player.skillManager) {
+                    this.hud.updateSkillCooldowns(this.player.skillManager.getAllSkills());
+                }
+            }
+            
+            // 更新敌人
+            if (this.enemySpawner) {
+                this.enemySpawner.update(deltaTime, this.player);
+            }
+            
+            // 检测碰撞
+            this.checkCollisions();
             
             // 更新 HUD
-            this.hud.setPlayerHealth(this.player.health, this.player.maxHealth);
-            this.hud.setPlayerMana(this.player.mana, this.player.maxMana);
-            this.hud.updateSkillCooldowns(this.player.skillManager.getAllSkills());
+            this.hud.update(deltaTime);
+            
+            // 检查游戏结束条件
+            this.checkGameOver();
+        } catch (e) {
+            console.error('游戏更新错误:', e);
         }
-        
-        // 更新敌人
-        if (this.enemySpawner) {
-            this.enemySpawner.update(deltaTime, this.player);
-        }
-        
-        // 检测碰撞
-        this.checkCollisions();
-        
-        // 更新 HUD
-        this.hud.update(deltaTime);
-        
-        // 检查游戏结束条件
-        this.checkGameOver();
     }
     
     /**

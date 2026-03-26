@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三国战记 - 测试套件</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 20px; color: #e94560; }
+        .test-section {
+            background: #16213e;
+            border: 2px solid #0f3460;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .test-section h2 {
+            color: #4ecca3;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        .test-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: #0f0f23;
+            border-radius: 4px;
+        }
+        .test-pass { color: #2ecc71; }
+        .test-fail { color: #e74c3c; }
+        .test-pending { color: #f39c12; }
+        #gameCanvas {
+            border: 2px solid #e94560;
+            margin-top: 20px;
+            display: none;
+        }
+        .btn {
+            background: #e94560;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        .btn:hover { background: #ff6b6b; }
+        .btn:disabled { background: #666; cursor: not-allowed; }
+        #results { margin-top: 20px; }
+        .summary {
+            font-size: 24px;
+            padding: 20px;
+            background: #16213e;
+            border-radius: 8px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 三国战记 - 自动化测试套件</h1>
+    
+    <div class="summary" id="summary">
+        准备运行测试...
+    </div>
+    
+    <div style="margin: 20px 0;">
+        <button class="btn" onclick="runAllTests()">▶️ 运行全部测试</button>
+        <button class="btn" onclick="runGameTest()">🎮 运行游戏测试</button>
+        <button class="btn" onclick="resetTests()">🔄 重置</button>
+    </div>
+    
+    <div id="results"></div>
+    
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    
+    <script>
+        let testResults = { passed: 0, failed: 0, pending: 0 };
+        const resultsDiv = document.getElementById('results');
+        const summaryDiv = document.getElementById('summary');
+        
+        function addTestResult(section, name, status, message = '') {
+            const sectionDiv = document.getElementById(`section-${section}`) || createSection(section);
+            const item = document.createElement('div');
+            item.className = 'test-item';
+            item.innerHTML = `
+                <span>${name}</span>
+                <span class="test-${status}">${status.toUpperCase()} ${message ? '- ' + message : ''}</span>
+            `;
+            sectionDiv.appendChild(item);
+            
+            testResults[status]++;
+            updateSummary();
+        }
+        
+        function createSection(name) {
+            const div = document.createElement('div');
+            div.className = 'test-section';
+            div.id = `section-${name}`;
+            div.innerHTML = `<h2>${name}</h2>`;
+            resultsDiv.appendChild(div);
+            return div;
+        }
+        
+        function updateSummary() {
+            const total = testResults.passed + testResults.failed + testResults.pending;
+            summaryDiv.innerHTML = `
+                总计：${total} | 
+                <span class="test-pass">✓ 通过：${testResults.passed}</span> | 
+                <span class="test-fail">✗ 失败：${testResults.failed}</span> | 
+                <span class="test-pending">⏳ 待测：${testResults.pending}</span>
+            `;
+        }
+        
+        function assert(condition, message) {
+            if (!condition) throw new Error(message);
+        }
+        
+        function runAllTests() {
+            testResults = { passed: 0, failed: 0, pending: 0 };
+            resultsDiv.innerHTML = '';
+            
+            try {
+                testModuleLoading();
+                testInputModule();
+                testGameLoopModule();
+                testSceneModule();
+                testEntityModules();
+                testAIModule();
+                testUIModule();
+                testGameIntegration();
+            } catch (e) {
+                console.error('测试执行错误:', e);
+            }
+        }
+        
+        function testModuleLoading() {
+            const section = '1. 模块加载测试';
+            
+            try {
+                assert(window.Input, 'Input 未定义');
+                addTestResult(section, 'Input 模块', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Input 模块', 'fail', e.message);
+            }
+            
+            try {
+                assert(window.GameLoop, 'GameLoop 未定义');
+                addTestResult(section, 'GameLoop 模块', 'pass');
+            } catch (e) {
+                addTestResult(section, 'GameLoop 模块', 'fail', e.message);
+            }
+            
+            try {
+                assert(window.Scene, 'Scene 未定义');
+                addTestResult(section, 'Scene 模块', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Scene 模块', 'fail', e.message);
+            }
+            
+            try {
+                assert(window.Player, 'Player 未定义');
+                addTestResult(section, 'Player 模块', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Player 模块', 'fail', e.message);
+            }
+            
+            try {
+                assert(window.Enemy, 'Enemy 未定义');
+                addTestResult(section, 'Enemy 模块', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Enemy 模块', 'fail', e.message);
+            }
+            
+            try {
+                assert(window.HUD, 'HUD 未定义');
+                addTestResult(section, 'HUD 模块', 'pass');
+            } catch (e) {
+                addTestResult(section, 'HUD 模块', 'fail', e.message);
+            }
+        }
+        
+        function testInputModule() {
+            const section = '2. Input 模块测试';
+            
+            try {
+                assert(typeof getDirection === 'function', 'getDirection 不是函数');
+                addTestResult(section, 'getDirection 函数', 'pass');
+            } catch (e) {
+                addTestResult(section, 'getDirection 函数', 'fail', e.message);
+            }
+            
+            try {
+                assert(typeof isAttacking === 'function', 'isAttacking 不是函数');
+                addTestResult(section, 'isAttacking 函数', 'pass');
+            } catch (e) {
+                addTestResult(section, 'isAttacking 函数', 'fail', e.message);
+            }
+            
+            try {
+                assert(typeof isUsingSkill === 'function', 'isUsingSkill 不是函数');
+                addTestResult(section, 'isUsingSkill 函数', 'pass');
+            } catch (e) {
+                addTestResult(section, 'isUsingSkill 函数', 'fail', e.message);
+            }
+            
+            try {
+                assert(window.CONTROLS, 'CONTROLS 未定义');
+                assert(window.CONTROLS.ATTACK, 'CONTROLS.ATTACK 未定义');
+                assert(window.CONTROLS.JUMP, 'CONTROLS.JUMP 未定义');
+                addTestResult(section, 'CONTROLS 常量', 'pass');
+            } catch (e) {
+                addTestResult(section, 'CONTROLS 常量', 'fail', e.message);
+            }
+        }
+        
+        function testGameLoopModule() {
+            const section = '3. GameLoop 模块测试';
+            
+            try {
+                const loop = new GameLoop();
+                assert(typeof loop.start === 'function', 'start 方法不存在');
+                assert(typeof loop.stop === 'function', 'stop 方法不存在');
+                assert(typeof loop.pause === 'function', 'pause 方法不存在');
+                assert(typeof loop.resume === 'function', 'resume 方法不存在');
+                addTestResult(section, 'GameLoop 基本方法', 'pass');
+            } catch (e) {
+                addTestResult(section, 'GameLoop 基本方法', 'fail', e.message);
+            }
+        }
+        
+        function testSceneModule() {
+            const section = '4. Scene 模块测试';
+            
+            try {
+                const scene = new Scene('test');
+                assert(typeof scene.init === 'function', 'init 方法不存在');
+                assert(typeof scene.addEntity === 'function', 'addEntity 方法不存在');
+                assert(typeof scene.removeEntity === 'function', 'removeEntity 方法不存在');
+                addTestResult(section, 'Scene 基本方法', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Scene 基本方法', 'fail', e.message);
+            }
+            
+            try {
+                const manager = new SceneManager();
+                assert(typeof manager.registerScene === 'function', 'registerScene 方法不存在');
+                assert(typeof manager.switchScene === 'function', 'switchScene 方法不存在');
+                addTestResult(section, 'SceneManager 基本方法', 'pass');
+            } catch (e) {
+                addTestResult(section, 'SceneManager 基本方法', 'fail', e.message);
+            }
+        }
+        
+        function testEntityModules() {
+            const section = '5. 实体模块测试';
+            
+            try {
+                const player = new Player({ name: '测试', x: 100, y: 400 });
+                assert(player.health > 0, '玩家生命值错误');
+                assert(typeof player.update === 'function', 'update 方法不存在');
+                assert(typeof player.takeDamage === 'function', 'takeDamage 方法不存在');
+                addTestResult(section, 'Player 基本功能', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Player 基本功能', 'fail', e.message);
+            }
+            
+            try {
+                const enemy = new Enemy({ name: '测试敌人', x: 600, y: 400 });
+                assert(enemy.health > 0, '敌人生命值错误');
+                assert(typeof enemy.update === 'function', 'update 方法不存在');
+                assert(typeof enemy.takeDamage === 'function', 'takeDamage 方法不存在');
+                addTestResult(section, 'Enemy 基本功能', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Enemy 基本功能', 'fail', e.message);
+            }
+            
+            try {
+                const canvas = document.getElementById('gameCanvas');
+                const scene = new Scene('test');
+                scene.init(canvas);
+                const spawner = new EnemySpawner(scene);
+                assert(typeof spawner.spawn === 'function', 'spawn 方法不存在');
+                assert(typeof spawner.spawnWave === 'function', 'spawnWave 方法不存在');
+                addTestResult(section, 'EnemySpawner 基本功能', 'pass');
+            } catch (e) {
+                addTestResult(section, 'EnemySpawner 基本功能', 'fail', e.message);
+            }
+        }
+        
+        function testAIModule() {
+            const section = '6. AI 模块测试';
+            
+            try {
+                assert(window.EnemyAIManager, 'EnemyAIManager 未定义');
+                assert(window.EnemyType, 'EnemyType 未定义');
+                addTestResult(section, 'AI 模块导出', 'pass');
+            } catch (e) {
+                addTestResult(section, 'AI 模块导出', 'fail', e.message);
+            }
+        }
+        
+        function testUIModule() {
+            const section = '7. UI 模块测试';
+            
+            try {
+                const hud = new HUD();
+                assert(typeof hud.init === 'function', 'init 方法不存在');
+                assert(typeof hud.render === 'function', 'render 方法不存在');
+                assert(typeof hud.setPlayerHealth === 'function', 'setPlayerHealth 方法不存在');
+                assert(typeof hud.addScore === 'function', 'addScore 方法不存在');
+                addTestResult(section, 'HUD 基本功能', 'pass');
+            } catch (e) {
+                addTestResult(section, 'HUD 基本功能', 'fail', e.message);
+            }
+        }
+        
+        function testGameIntegration() {
+            const section = '8. 游戏整合测试';
+            
+            try {
+                assert(window.Game, 'Game 类未定义');
+                const game = new Game();
+                assert(typeof game.init === 'function', 'init 方法不存在');
+                assert(typeof game.start === 'function', 'start 方法不存在');
+                addTestResult(section, 'Game 类基本功能', 'pass');
+            } catch (e) {
+                addTestResult(section, 'Game 类基本功能', 'fail', e.message);
+            }
+        }
+        
+        function runGameTest() {
+            const canvas = document.getElementById('gameCanvas');
+            canvas.style.display = 'block';
+            
+            if (window.game) {
+                window.game.stop();
+            }
+            
+            window.game = new Game();
+            window.game.canvas = canvas;
+            window.game.init();
+            window.game.start();
+            
+            addTestResult('9. 游戏运行测试', '游戏启动', 'pass');
+        }
+        
+        function resetTests() {
+            testResults = { passed: 0, failed: 0, pending: 0 };
+            resultsDiv.innerHTML = '';
+            updateSummary();
+            document.getElementById('gameCanvas').style.display = 'none';
+        }
+        
+        // 页面加载后自动运行测试
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 1000);
+        });
+    </script>
+    
+    <!-- 加载游戏模块 -->
+    <script src="core/Input.js"></script>
+    <script src="core/GameLoop.js"></script>
+    <script src="core/Scene.js"></script>
+    <script src="entities/Skill.js"></script>
+    <script src="entities/Player.js"></script>
+    <script src="entities/Enemy.js"></script>
+    <script src="ai/EnemyAI.js"></script>
+    <script src="ui/HUD.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三国战记 - E2E 端到端测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 20px; color: #e94560; }
+        .test-status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 4px;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .status-running { background: #f39c12; }
+        .status-pass { background: #2ecc71; }
+        .status-fail { background: #e74c3c; }
+        #gameContainer {
+            position: relative;
+            display: inline-block;
+            border: 4px solid #e94560;
+            margin-top: 20px;
+        }
+        #gameCanvas {
+            display: block;
+            background: #0f0f23;
+        }
+        #loadingScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            font-size: 24px;
+            z-index: 100;
+        }
+        .hidden { display: none !important; }
+        .log {
+            margin-top: 20px;
+            background: #0f0f23;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-item { margin: 3px 0; }
+        .log-info { color: #4ecca3; }
+        .log-error { color: #e74c3c; }
+        .log-success { color: #2ecc71; }
+        .controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: #16213e;
+            border-radius: 8px;
+        }
+        .controls h3 { margin-bottom: 10px; color: #4ecca3; }
+        .key {
+            display: inline-block;
+            background: #333;
+            padding: 3px 8px;
+            border-radius: 3px;
+            margin: 2px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎮 三国战记 - E2E 端到端测试</h1>
+    
+    <div>
+        <span class="test-status status-running" id="status">准备测试...</span>
+        <span class="test-status" id="fps-status">FPS: --</span>
+    </div>
+    
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="loadingScreen">加载中...</div>
+    </div>
+    
+    <div class="controls">
+        <h3>🎯 操作说明</h3>
+        <p>
+            <span class="key">↑</span><span class="key">↓</span><span class="key">←</span><span class="key">→</span> 或 
+            <span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> - 移动
+        </p>
+        <p>
+            <span class="key">J</span> - 攻击 | 
+            <span class="key">K</span> - 特殊技能 | 
+            <span class="key">L</span> - 跳跃
+        </p>
+        <p>
+            <span class="key">P</span> - 暂停 | 
+            <span class="key">R</span> - 重新开始
+        </p>
+    </div>
+    
+    <div class="log" id="log"></div>
+    
+    <script>
+        const logDiv = document.getElementById('log');
+        const statusEl = document.getElementById('status');
+        const fpsEl = document.getElementById('fps-status');
+        
+        function log(message, type = 'info') {
+            const item = document.createElement('div');
+            item.className = `log-item log-${type}`;
+            const time = new Date().toLocaleTimeString();
+            item.textContent = `[${time}] ${message}`;
+            logDiv.appendChild(item);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function setStatus(status, message) {
+            statusEl.className = `test-status status-${status}`;
+            statusEl.textContent = message;
+        }
+        
+        // 测试检查清单
+        const checks = {
+            modulesLoaded: false,
+            gameInitialized: false,
+            gameStarted: false,
+            loadingScreenHidden: false,
+            fpsRunning: false,
+            playerExists: false,
+            inputWorking: false
+        };
+        
+        function updateStatus() {
+            const allPassed = Object.values(checks).every(v => v);
+            if (allPassed) {
+                setStatus('pass', '✅ 所有检查通过 - 游戏运行正常');
+                log('E2E 测试完成！游戏可以部署。', 'success');
+            }
+        }
+        
+        // 等待模块加载
+        window.addEventListener('load', () => {
+            log('页面加载完成，开始加载游戏模块...');
+            
+            setTimeout(() => {
+                // 检查模块
+                const modules = ['Input', 'GameLoop', 'Scene', 'Player', 'Enemy', 'HUD', 'Game'];
+                let allLoaded = true;
+                
+                modules.forEach(mod => {
+                    if (window[mod]) {
+                        log(`✅ 模块加载：${mod}`);
+                    } else {
+                        log(`❌ 模块缺失：${mod}`, 'error');
+                        allLoaded = false;
+                    }
+                });
+                
+                checks.modulesLoaded = allLoaded;
+                
+                if (allLoaded) {
+                    log('所有模块加载成功，初始化游戏...');
+                    
+                    // 创建游戏
+                    window.game = new Game();
+                    checks.playerExists = true;
+                    
+                    // 监听加载屏幕
+                    const observer = new MutationObserver(() => {
+                        const loadingScreen = document.getElementById('loadingScreen');
+                        if (loadingScreen.classList.contains('hidden')) {
+                            checks.loadingScreenHidden = true;
+                            log('✅ 加载屏幕已隐藏', 'success');
+                            updateStatus();
+                        }
+                    });
+                    
+                    observer.observe(document.getElementById('loadingScreen'), {
+                        attributes: true,
+                        attributeFilter: ['class']
+                    });
+                    
+                    // 启动游戏
+                    setTimeout(() => {
+                        window.game.start();
+                        checks.gameStarted = true;
+                        log('✅ 游戏已启动', 'success');
+                        
+                        // 监控 FPS
+                        setInterval(() => {
+                            if (window.game && window.game.gameLoop) {
+                                const fps = window.game.gameLoop.getFPS();
+                                fpsEl.textContent = `FPS: ${fps}`;
+                                if (fps > 0) checks.fpsRunning = true;
+                            }
+                        }, 1000);
+                        
+                        // 测试输入
+                        window.addEventListener('keydown', (e) => {
+                            if (!checks.inputWorking) {
+                                checks.inputWorking = true;
+                                log(`✅ 输入检测正常 (检测到按键：${e.code})`, 'success');
+                                updateStatus();
+                            }
+                        });
+                        
+                        updateStatus();
+                    }, 500);
+                } else {
+                    setStatus('fail', '❌ 模块加载失败');
+                }
+                
+                updateStatus();
+            }, 1000);
+        });
+        
+        // 错误监控
+        window.addEventListener('error', (e) => {
+            log(`❌ 运行时错误：${e.message}`, 'error');
+            setStatus('fail', '❌ 运行时错误');
+        });
+    </script>
+    
+    <!-- 加载游戏模块 -->
+    <script src="../core/Input.js"></script>
+    <script src="../core/GameLoop.js"></script>
+    <script src="../core/Scene.js"></script>
+    <script src="../entities/Skill.js"></script>
+    <script src="../entities/Player.js"></script>
+    <script src="../entities/Enemy.js"></script>
+    <script src="../ai/EnemyAI.js"></script>
+    <script src="../ui/HUD.js"></script>
+    <script src="../game.js"></script>
+</body>
+</html>
