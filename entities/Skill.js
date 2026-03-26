@@ -195,6 +195,395 @@ class SkillManager {
     }
 }
 
+// ============ 道具/物品系统 ============
+
+/**
+ * 物品基类
+ */
+class Item {
+    constructor(config) {
+        this.id = config.id || 'item_' + Date.now();
+        this.name = config.name || '未命名物品';
+        this.type = config.type || 'consumable'; // consumable, equipment, key
+        this.icon = config.icon || null;
+        this.description = config.description || '';
+        this.maxStack = config.maxStack || 99;
+        this.stackCount = config.stackCount || 1;
+    }
+    
+    /**
+     * 使用物品
+     * @param {object} user - 使用者
+     * @returns {boolean} 是否成功使用
+     */
+    use(user) {
+        if (this.type !== 'consumable') {
+            console.log(`${this.name} 不是消耗品`);
+            return false;
+        }
+        return true;
+    }
+    
+    /**
+     * 获取物品效果描述
+     * @returns {string}
+     */
+    getDescription() {
+        return this.description;
+    }
+}
+
+/**
+ * 金创药 - 恢复血量
+ */
+class HealthPotion extends Item {
+    constructor() {
+        super({
+            id: 'health_potion',
+            name: '金创药',
+            type: 'consumable',
+            description: '恢复 50% 血量',
+            maxStack: 5
+        });
+        this.healPercent = 0.5;
+    }
+    
+    use(user) {
+        if (!super.use(user)) return false;
+        
+        const healAmount = Math.floor(user.maxHealth * this.healPercent);
+        user.heal(healAmount);
+        console.log(`${user.name} 使用金创药，恢复${healAmount}点血量`);
+        return true;
+    }
+}
+
+/**
+ * 魔力水 - 恢复法力
+ */
+class ManaPotion extends Item {
+    constructor() {
+        super({
+            id: 'mana_potion',
+            name: '魔力水',
+            type: 'consumable',
+            description: '恢复 50% 能量',
+            maxStack: 5
+        });
+        this.restorePercent = 0.5;
+    }
+    
+    use(user) {
+        if (!super.use(user)) return false;
+        
+        const restoreAmount = Math.floor(user.maxMana * this.restorePercent);
+        user.restoreMana(restoreAmount);
+        console.log(`${user.name} 使用魔力水，恢复${restoreAmount}点法力`);
+        return true;
+    }
+}
+
+/**
+ * 战神符 - 无敌状态
+ */
+class WarGodCharm extends Item {
+    constructor() {
+        super({
+            id: 'war_god_charm',
+            name: '战神符',
+            type: 'consumable',
+            description: '30 秒内无敌',
+            maxStack: 3
+        });
+        this.duration = 30; // 秒
+    }
+    
+    use(user) {
+        if (!super.use(user)) return false;
+        
+        // 激活无敌状态
+        user.isInvincible = true;
+        user.invincibleTimer = this.duration;
+        
+        console.log(`${user.name} 激活战神符，获得${this.duration}秒无敌!`);
+        
+        // 设置计时器
+        setTimeout(() => {
+            if (user) {
+                user.isInvincible = false;
+                console.log('战神符效果消失');
+            }
+        }, this.duration * 1000);
+        
+        return true;
+    }
+}
+
+/**
+ * 天书 - 全屏攻击
+ */
+class HeavenBook extends Item {
+    constructor() {
+        super({
+            id: 'heaven_book',
+            name: '天书',
+            type: 'consumable',
+            description: '对全屏敌人造成 200 点伤害',
+            maxStack: 2
+        });
+        this.damage = 200;
+        this.bossDamage = 100; // 对 BOSS 伤害
+    }
+    
+    use(user, scene) {
+        if (!super.use(user)) return false;
+        
+        console.log(`${user.name} 使用天书，释放全屏攻击!`);
+        
+        // 对场景中所有敌人造成伤害
+        if (scene && scene.entities) {
+            scene.entities.forEach(entity => {
+                if (entity !== user && entity.takeDamage) {
+                    const damage = entity.isBoss ? this.bossDamage : this.damage;
+                    entity.takeDamage(damage);
+                }
+            });
+        }
+        
+        // 视觉效果
+        if (window.game && window.game.hud) {
+            window.game.hud.showMessage('天书之力!', '#9b59b6');
+        }
+        
+        return true;
+    }
+}
+
+/**
+ * 太平要术 - 召唤援军
+ */
+class TaipingArt extends Item {
+    constructor() {
+        super({
+            id: 'taiping_art',
+            name: '太平要术',
+            type: 'consumable',
+            description: '召唤 3 名援军助战 60 秒',
+            maxStack: 1
+        });
+        this.duration = 60; // 秒
+        this.allyCount = 3;
+    }
+    
+    use(user, scene, enemySpawner) {
+        if (!super.use(user)) return false;
+        
+        console.log(`${user.name} 使用太平要术，召唤援军!`);
+        
+        // 召唤援军
+        const allies = [];
+        const allyNames = ['关羽援军', '张飞援军', '赵云援军'];
+        
+        for (let i = 0; i < this.allyCount; i++) {
+            const ally = enemySpawner.spawn({
+                type: 'ally',
+                name: allyNames[i],
+                maxHealth: 100,
+                attack: 20,
+                defense: 5,
+                speed: 150,
+                isAlly: true
+            });
+            
+            if (ally) {
+                allies.push(ally);
+            }
+        }
+        
+        // 设置援军消失时间
+        setTimeout(() => {
+            allies.forEach(ally => {
+                if (ally && !ally.isDead) {
+                    ally.isDead = true;
+                    if (scene) {
+                        scene.removeEntity(ally);
+                    }
+                }
+            });
+            console.log('援军消失');
+        }, this.duration * 1000);
+        
+        if (window.game && window.game.hud) {
+            window.game.hud.showMessage('援军降临!', '#3498db');
+        }
+        
+        return true;
+    }
+}
+
+/**
+ * 物品栏/背包系统
+ */
+class Inventory {
+    constructor(owner, maxSlots = 8) {
+        this.owner = owner;
+        this.maxSlots = maxSlots;
+        this.slots = new Array(maxSlots).fill(null);
+        this.selectedSlot = 0;
+    }
+    
+    /**
+     * 添加物品
+     * @param {string} itemId - 物品 ID
+     * @param {number} count - 数量
+     * @returns {boolean}
+     */
+    addItem(itemId, count = 1) {
+        // 尝试堆叠
+        for (let slot of this.slots) {
+            if (slot && slot.item.id === itemId && slot.count < slot.item.maxStack) {
+                const canAdd = Math.min(count, slot.item.maxStack - slot.count);
+                slot.count += canAdd;
+                count -= canAdd;
+                if (count <= 0) return true;
+            }
+        }
+        
+        // 找空位
+        if (count > 0) {
+            for (let i = 0; i < this.slots.length; i++) {
+                if (!this.slots[i]) {
+                    const item = this.createItem(itemId);
+                    if (item) {
+                        this.slots[i] = {
+                            item: item,
+                            count: Math.min(count, item.maxStack)
+                        };
+                        count -= this.slots[i].count;
+                        if (count <= 0) return true;
+                    }
+                }
+            }
+        }
+        
+        // 背包已满
+        if (count > 0) {
+            console.log('背包已满!');
+            return false;
+        }
+        
+        return true;
+    }
+    
+    /**
+     * 创建物品实例
+     * @param {string} itemId
+     * @returns {Item}
+     */
+    createItem(itemId) {
+        switch (itemId) {
+            case 'health_potion':
+                return new HealthPotion();
+            case 'mana_potion':
+                return new ManaPotion();
+            case 'war_god_charm':
+                return new WarGodCharm();
+            case 'heaven_book':
+                return new HeavenBook();
+            case 'taiping_art':
+                return new TaipingArt();
+            default:
+                return null;
+        }
+    }
+    
+    /**
+     * 使用选中物品
+     * @returns {boolean}
+     */
+    useSelectedItem() {
+        const slot = this.slots[this.selectedSlot];
+        if (!slot || slot.count <= 0) {
+            console.log('没有物品或数量不足');
+            return false;
+        }
+        
+        const success = slot.item.use(this.owner, 
+            window.game ? window.game.sceneManager.getCurrentScene() : null,
+            window.game ? window.game.enemySpawner : null
+        );
+        
+        if (success) {
+            slot.count--;
+            if (slot.count <= 0) {
+                this.slots[this.selectedSlot] = null;
+            }
+        }
+        
+        return success;
+    }
+    
+    /**
+     * 选择物品槽
+     * @param {number} slotIndex
+     */
+    selectSlot(slotIndex) {
+        if (slotIndex >= 0 && slotIndex < this.maxSlots) {
+            this.selectedSlot = slotIndex;
+        }
+    }
+    
+    /**
+     * 获取物品信息
+     * @param {number} slotIndex
+     * @returns {object|null}
+     */
+    getSlotInfo(slotIndex) {
+        const slot = this.slots[slotIndex];
+        if (!slot) return null;
+        
+        return {
+            name: slot.item.name,
+            count: slot.count,
+            description: slot.item.description,
+            isSelected: slotIndex === this.selectedSlot
+        };
+    }
+    
+    /**
+     * 获取所有物品
+     * @returns {array}
+     */
+    getAllItems() {
+        return this.slots.map((slot, index) => {
+            if (!slot) return null;
+            return {
+                slot: index,
+                name: slot.item.name,
+                count: slot.count,
+                maxStack: slot.item.maxStack
+            };
+        }).filter(s => s !== null);
+    }
+    
+    /**
+     * 是否有指定物品
+     * @param {string} itemId
+     * @returns {boolean}
+     */
+    hasItem(itemId) {
+        return this.slots.some(slot => slot && slot.item.id === itemId && slot.count > 0);
+    }
+    
+    /**
+     * 清空背包
+     */
+    clear() {
+        this.slots.fill(null);
+        this.selectedSlot = 0;
+    }
+}
+
 // 预定义技能
 const PRESET_SKILLS = {
     // 普通攻击
@@ -237,6 +626,42 @@ const PRESET_SKILLS = {
         range: 100,
         manaCost: 30,
         type: 'buff'
+    }),
+    
+    // 关羽专属技能
+    GREEN_DRAGON_SLASH: new Skill({
+        id: 'green_dragon_slash',
+        name: '青龙斩',
+        damage: 80,
+        cooldown: 5,
+        range: 100,
+        manaCost: 30,
+        type: 'melee',
+        description: '向前方扇形区域攻击'
+    }),
+    
+    // 张飞专属技能
+    ROAR_CHARGE: new Skill({
+        id: 'roar_charge',
+        name: '怒吼冲锋',
+        damage: 60,
+        cooldown: 6,
+        range: 200,
+        manaCost: 35,
+        type: 'charge',
+        description: '向目标冲锋并眩晕 2 秒'
+    }),
+    
+    // 赵云专属技能
+    SEVEN_IN_SEVEN_OUT: new Skill({
+        id: 'seven_in_seven_out',
+        name: '七进七出',
+        damage: 100,
+        cooldown: 8,
+        range: 80,
+        manaCost: 40,
+        type: 'buff',
+        description: '短时间内无敌并连续攻击'
     })
 };
 
@@ -244,3 +669,10 @@ const PRESET_SKILLS = {
 window.Skill = Skill;
 window.SkillManager = SkillManager;
 window.PRESET_SKILLS = PRESET_SKILLS;
+window.Item = Item;
+window.HealthPotion = HealthPotion;
+window.ManaPotion = ManaPotion;
+window.WarGodCharm = WarGodCharm;
+window.HeavenBook = HeavenBook;
+window.TaipingArt = TaipingArt;
+window.Inventory = Inventory;

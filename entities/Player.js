@@ -1,24 +1,93 @@
 /**
- * Player.js - 玩家角色模块
- * 负责管理玩家角色的状态、行为和渲染
+ * Player.js - 玩家角色模块（美化版）
+ * 支持关羽、张飞、赵云三个角色，每个角色有独特外观和武器
+ * 实现状态机、动画帧、武器绘制
  */
+
+// 角色配置（美化版）
+const CharacterConfig = {
+    GUANYU: {
+        name: '关羽',
+        weapon: '青龙偃月刀',
+        robeColor: '#c41e3a',      // 红色战袍
+        skinColor: '#f5d0b0',      // 肤色
+        hairColor: '#1a1a1a',      // 黑色头发
+        weaponColor: '#2d5016',    // 青龙刀颜色
+        accentColor: '#ffd700',    // 金色装饰
+        attackRange: 80,
+        attackDamage: 25,
+        moveSpeed: 200,
+        maxHealth: 120,
+        maxMana: 50
+    },
+    ZHANGFEI: {
+        name: '张飞',
+        weapon: '蛇矛',
+        robeColor: '#1a1a2e',      // 黑色战袍
+        skinColor: '#d4a574',      // 深色肤色
+        hairColor: '#1a1a1a',
+        weaponColor: '#4a4a6a',    // 蛇矛颜色
+        accentColor: '#8b0000',    // 暗红装饰
+        attackRange: 70,
+        attackDamage: 30,
+        moveSpeed: 180,
+        maxHealth: 150,
+        maxMana: 40
+    },
+    ZHAOYUN: {
+        name: '赵云',
+        weapon: '长枪',
+        robeColor: '#f8f8ff',      // 白色战袍
+        skinColor: '#f5e6d3',      // 白皙肤色
+        hairColor: '#1a1a1a',
+        weaponColor: '#c0c0c0',    // 银枪颜色
+        accentColor: '#4169e1',    // 蓝色装饰
+        attackRange: 75,
+        attackDamage: 22,
+        moveSpeed: 220,
+        maxHealth: 100,
+        maxMana: 60
+    }
+};
+
+// 动画帧配置
+const AnimationFrames = {
+    idle: { frames: 4, speed: 0.15 },
+    walk: { frames: 6, speed: 0.1 },
+    attack: { frames: 4, speed: 0.08 },
+    hit: { frames: 2, speed: 0.2 },
+    jump: { frames: 1, speed: 0.1 }
+};
+
 class Player {
     constructor(config = {}) {
+        // 角色选择
+        this.characterType = config.characterType || 'GUANYU';
+        const charConfig = CharacterConfig[this.characterType] || CharacterConfig.GUANYU;
+        
         // 基本属性
-        this.name = config.name || '玩家';
+        this.name = charConfig.name;
+        this.weapon = charConfig.weapon;
         this.x = config.x || 100;
         this.y = config.y || 400;
-        this.width = config.width || 50;
-        this.height = config.height || 80;
+        this.width = 50;
+        this.height = 80;
+        
+        // 角色颜色配置
+        this.robeColor = charConfig.robeColor;
+        this.skinColor = charConfig.skinColor;
+        this.hairColor = charConfig.hairColor;
+        this.weaponColor = charConfig.weaponColor;
+        this.accentColor = charConfig.accentColor;
         
         // 战斗属性
-        this.maxHealth = config.maxHealth || 100;
+        this.maxHealth = charConfig.maxHealth;
         this.health = this.maxHealth;
-        this.maxMana = config.maxMana || 50;
+        this.maxMana = charConfig.maxMana;
         this.mana = this.maxMana;
-        this.attack = config.attack || 10;
+        this.attack = charConfig.attackDamage;
         this.defense = config.defense || 5;
-        this.speed = config.speed || 200; // 像素/秒
+        this.speed = charConfig.moveSpeed;
         
         // 状态
         this.velocityX = 0;
@@ -27,13 +96,13 @@ class Player {
         this.isAttacking = false;
         this.isHit = false;
         this.isDead = false;
-        this.facing = config.facing || 1; // 1: 右，-1: 左
+        this.facing = config.facing || 1;
         
-        // 动画
+        // 动画系统
         this.currentFrame = 0;
         this.animationTimer = 0;
-        this.animationSpeed = 0.1; // 秒/帧
-        this.state = 'idle'; // idle, walk, attack, hit, jump
+        this.state = 'idle';
+        this.animConfig = AnimationFrames.idle;
         
         // 技能系统
         this.skillManager = new SkillManager(this);
@@ -55,13 +124,16 @@ class Player {
             height: 40,
             active: false
         };
+        
+        // 武器动画
+        this.weaponAngle = 0;
+        this.weaponSwing = 0;
     }
     
     /**
      * 初始化技能
      */
     initSkills() {
-        // 添加预设技能
         this.skillManager.addSkill(PRESET_SKILLS.BASIC_ATTACK);
         this.skillManager.addSkill(PRESET_SKILLS.SPECIAL_ATTACK);
         this.skillManager.addSkill(PRESET_SKILLS.PROJECTILE);
@@ -69,74 +141,52 @@ class Player {
     
     /**
      * 更新玩家状态
-     * @param {number} deltaTime - 帧间隔时间 (秒)
-     * @param {object} input - 输入状态
      */
     update(deltaTime, input) {
         if (this.isDead) return;
         
-        // 更新技能冷却
         this.skillManager.update(deltaTime);
-        
-        // 处理输入
         this.handleInput(input, deltaTime);
-        
-        // 应用物理
         this.applyPhysics(deltaTime);
         
-        // 更新位置
         this.x += this.velocityX * deltaTime;
         this.y += this.velocityY * deltaTime;
         
-        // 更新碰撞体
         this.updateHitbox();
-        
-        // 更新攻击框
-        if (this.isAttacking) {
-            this.attackBox.x = this.facing === 1 ? this.x + this.width : this.x - this.attackBox.width;
-            this.attackBox.y = this.y + 20;
-        }
-        
-        // 边界检查
+        this.updateAttackBox();
         this.checkBounds();
-        
-        // 更新动画
         this.updateAnimation(deltaTime);
+        this.updateWeaponAnimation();
     }
     
     /**
      * 处理输入
-     * @param {object} input
-     * @param {number} deltaTime
      */
     handleInput(input, deltaTime) {
-        // 水平移动
         this.velocityX = 0;
+        
         if (input.left) {
             this.velocityX = -this.speed;
             this.facing = -1;
-            this.state = 'walk';
+            this.changeState('walk');
         } else if (input.right) {
             this.velocityX = this.speed;
             this.facing = 1;
-            this.state = 'walk';
-        } else {
-            this.state = 'idle';
+            this.changeState('walk');
+        } else if (this.state === 'walk') {
+            this.changeState('idle');
         }
         
-        // 跳跃
         if (input.jump && this.isGrounded) {
-            this.velocityY = -400; // 跳跃力度
+            this.velocityY = -400;
             this.isGrounded = false;
-            this.state = 'jump';
+            this.changeState('jump');
         }
         
-        // 攻击
         if (input.attack && !this.isAttacking) {
             this.attack();
         }
         
-        // 使用技能
         if (input.skill) {
             this.useSkill();
         }
@@ -144,14 +194,11 @@ class Player {
     
     /**
      * 应用物理
-     * @param {number} deltaTime
      */
     applyPhysics(deltaTime) {
-        // 重力
-        const gravity = 800; // 像素/秒²
+        const gravity = 800;
         this.velocityY += gravity * deltaTime;
         
-        // 地面检测 (简化版)
         const groundY = 520;
         if (this.y + this.height >= groundY) {
             this.y = groundY - this.height;
@@ -169,26 +216,58 @@ class Player {
     }
     
     /**
+     * 更新攻击框
+     */
+    updateAttackBox() {
+        if (this.isAttacking) {
+            this.attackBox.x = this.facing === 1 ? this.x + this.width : this.x - this.attackBox.width;
+            this.attackBox.y = this.y + 20;
+        }
+    }
+    
+    /**
      * 边界检查
      */
     checkBounds() {
         const canvasWidth = 800;
-        const canvasHeight = 600;
-        
         if (this.x < 0) this.x = 0;
         if (this.x + this.width > canvasWidth) this.x = canvasWidth - this.width;
         if (this.y < 0) this.y = 0;
     }
     
     /**
+     * 改变状态
+     */
+    changeState(newState) {
+        if (this.state === newState) return;
+        
+        this.state = newState;
+        this.animConfig = AnimationFrames[newState] || AnimationFrames.idle;
+        this.currentFrame = 0;
+        this.animationTimer = 0;
+    }
+    
+    /**
      * 更新动画
-     * @param {number} deltaTime
      */
     updateAnimation(deltaTime) {
         this.animationTimer += deltaTime;
-        if (this.animationTimer >= this.animationSpeed) {
+        if (this.animationTimer >= this.animConfig.speed) {
             this.animationTimer = 0;
-            this.currentFrame = (this.currentFrame + 1) % 4;
+            this.currentFrame = (this.currentFrame + 1) % this.animConfig.frames;
+        }
+    }
+    
+    /**
+     * 更新武器动画
+     */
+    updateWeaponAnimation() {
+        if (this.isAttacking) {
+            this.weaponSwing += 0.3;
+            this.weaponAngle = Math.sin(this.weaponSwing) * Math.PI / 2;
+        } else {
+            this.weaponAngle = 0;
+            this.weaponSwing = 0;
         }
     }
     
@@ -198,12 +277,13 @@ class Player {
     attack() {
         this.isAttacking = true;
         this.attackBox.active = true;
-        this.state = 'attack';
+        this.changeState('attack');
+        this.weaponSwing = 0;
         
-        // 攻击持续短暂时间
         setTimeout(() => {
             this.isAttacking = false;
             this.attackBox.active = false;
+            if (this.isGrounded) this.changeState('idle');
         }, 300);
     }
     
@@ -211,29 +291,26 @@ class Player {
      * 使用技能
      */
     useSkill() {
-        // 简单实现：使用必杀技
         this.skillManager.useSkill('special_attack', null);
     }
     
     /**
      * 受到伤害
-     * @param {number} damage - 伤害值
      */
     takeDamage(damage) {
         const actualDamage = Math.max(1, damage - this.defense);
         this.health -= actualDamage;
         this.isHit = true;
+        this.changeState('hit');
         
-        console.log(`${this.name} 受到 ${actualDamage} 点伤害，剩余生命：${this.health}`);
+        setTimeout(() => {
+            this.isHit = false;
+            if (this.isGrounded) this.changeState('idle');
+        }, 500);
         
         if (this.health <= 0) {
             this.die();
         }
-        
-        // 重置受击状态
-        setTimeout(() => {
-            this.isHit = false;
-        }, 500);
     }
     
     /**
@@ -242,12 +319,11 @@ class Player {
     die() {
         this.isDead = true;
         this.health = 0;
-        console.log(`${this.name} 被击败了!`);
+        this.changeState('hit');
     }
     
     /**
      * 治疗
-     * @param {number} amount - 治疗量
      */
     heal(amount) {
         this.health = Math.min(this.maxHealth, this.health + amount);
@@ -255,57 +331,335 @@ class Player {
     
     /**
      * 恢复法力
-     * @param {number} amount - 恢复量
      */
     restoreMana(amount) {
         this.mana = Math.min(this.maxMana, this.mana + amount);
     }
     
     /**
-     * 渲染玩家
-     * @param {CanvasRenderingContext2D} ctx
+     * 渲染玩家（美化版）
      */
     render(ctx) {
         ctx.save();
         
-        // 受击闪白效果
+        // 受击闪白
         if (this.isHit) {
-            ctx.globalAlpha = 0.5;
+            ctx.globalAlpha = 0.5 + Math.sin(Date.now() / 50) * 0.3;
         }
         
-        // 绘制角色 (简化为矩形，实际可替换为精灵图)
-        ctx.fillStyle = this.isDead ? '#666' : '#3498db';
-        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // 死亡效果
+        if (this.isDead) {
+            ctx.globalAlpha = 0.6;
+        }
         
-        // 绘制方向指示
-        ctx.fillStyle = '#fff';
-        const eyeX = this.facing === 1 ? this.x + 35 : this.x + 10;
-        ctx.fillRect(eyeX, this.y + 15, 8, 8);
+        const cx = this.x + this.width / 2;
+        const cy = this.y + this.height / 2;
         
-        // 绘制攻击框 (调试用)
+        // 应用面向
+        ctx.translate(cx, cy);
+        ctx.scale(this.facing, 1);
+        ctx.translate(-cx, -cy);
+        
+        // 绘制角色（从后到前）
+        this.renderHair(ctx, cx, cy);
+        this.renderHead(ctx, cx, cy);
+        this.renderRobe(ctx, cx, cy);
+        this.renderArms(ctx, cx, cy);
+        this.renderWeapon(ctx, cx, cy);
+        this.renderBelt(ctx, cx, cy);
+        
+        // 绘制攻击框（调试用）
         if (this.attackBox.active) {
-            ctx.strokeStyle = '#e74c3c';
+            ctx.strokeStyle = 'rgba(231, 76, 60, 0.8)';
             ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]);
             ctx.strokeRect(
                 this.attackBox.x,
                 this.attackBox.y,
                 this.attackBox.width,
                 this.attackBox.height
             );
+            ctx.setLineDash([]);
         }
         
-        // 绘制血条
-        this.renderHealthBar(ctx);
+        ctx.restore();
         
-        // 绘制法力条
+        // 血条和法力条（不受面向影响）
+        this.renderHealthBar(ctx);
         this.renderManaBar(ctx);
+    }
+    
+    /**
+     * 绘制头发
+     */
+    renderHair(ctx, cx, cy) {
+        const walkOffset = this.state === 'walk' ? Math.sin(this.currentFrame) * 3 : 0;
+        
+        ctx.fillStyle = this.hairColor;
+        ctx.beginPath();
+        // 头发主体
+        ctx.ellipse(cx, cy - 35 + walkOffset, 18, 22, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 发髻（古代发型）
+        ctx.beginPath();
+        ctx.arc(cx, cy - 50 + walkOffset, 10, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 关羽特殊：长须
+        if (this.characterType === 'GUANYU') {
+            ctx.fillStyle = this.hairColor;
+            ctx.beginPath();
+            ctx.moveTo(cx - 5, cy - 20);
+            ctx.quadraticCurveTo(cx, cy + 10, cx - 8, cy + 25);
+            ctx.quadraticCurveTo(cx + 5, cy + 15, cx + 5, cy - 20);
+            ctx.fill();
+        }
+        
+        // 张飞特殊：络腮胡
+        if (this.characterType === 'ZHANGFEI') {
+            ctx.fillStyle = this.hairColor;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy - 15, 15, 12, 0, 0, Math.PI);
+            ctx.fill();
+        }
+    }
+    
+    /**
+     * 绘制头部
+     */
+    renderHead(ctx, cx, cy) {
+        ctx.fillStyle = this.skinColor;
+        ctx.beginPath();
+        ctx.arc(cx, cy - 30, 16, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 眼睛
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath();
+        ctx.ellipse(cx + 5, cy - 32, 3, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 眉毛
+        ctx.strokeStyle = this.hairColor;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(cx + 2, cy - 38);
+        ctx.lineTo(cx + 10, cy - 36);
+        ctx.stroke();
+        
+        // 赵云特殊：英眉
+        if (this.characterType === 'ZHAOYUN') {
+            ctx.beginPath();
+            ctx.moveTo(cx + 2, cy - 37);
+            ctx.lineTo(cx + 12, cy - 34);
+            ctx.stroke();
+        }
+    }
+    
+    /**
+     * 绘制战袍
+     */
+    renderRobe(ctx, cx, cy) {
+        const walkBob = this.state === 'walk' ? Math.sin(this.currentFrame * 2) * 2 : 0;
+        
+        // 战袍主体
+        ctx.fillStyle = this.robeColor;
+        ctx.beginPath();
+        ctx.moveTo(cx - 18, cy - 15);
+        ctx.lineTo(cx + 18, cy - 15);
+        ctx.lineTo(cx + 20, cy + 35 + walkBob);
+        ctx.lineTo(cx - 20, cy + 35 + walkBob);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 战袍边缘装饰
+        ctx.strokeStyle = this.accentColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx - 18, cy - 15);
+        ctx.lineTo(cx - 20, cy + 35 + walkBob);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.moveTo(cx + 18, cy - 15);
+        ctx.lineTo(cx + 20, cy + 35 + walkBob);
+        ctx.stroke();
+        
+        // 肩部装饰
+        ctx.fillStyle = this.accentColor;
+        ctx.beginPath();
+        ctx.arc(cx - 18, cy - 12, 6, 0, Math.PI * 2);
+        ctx.arc(cx + 18, cy - 12, 6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    /**
+     * 绘制手臂
+     */
+    renderArms(ctx, cx, cy) {
+        const attackAngle = this.isAttacking ? this.weaponAngle : 0;
+        const walkSwing = this.state === 'walk' ? Math.sin(this.currentFrame) * 0.3 : 0;
+        
+        ctx.fillStyle = this.skinColor;
+        
+        // 后臂
+        ctx.save();
+        ctx.translate(cx - 15, cy - 10);
+        ctx.rotate(walkSwing - attackAngle);
+        ctx.fillRect(-5, 0, 10, 25);
+        ctx.restore();
+        
+        // 前臂（攻击时抬起）
+        ctx.save();
+        ctx.translate(cx + 15, cy - 10);
+        ctx.rotate(-walkSwing + attackAngle);
+        ctx.fillRect(-5, 0, 10, 25);
+        ctx.restore();
+    }
+    
+    /**
+     * 绘制武器
+     */
+    renderWeapon(ctx, cx, cy) {
+        const attackAngle = this.isAttacking ? this.weaponAngle : 0;
+        const walkSwing = this.state === 'walk' ? Math.sin(this.currentFrame) * 0.2 : 0;
+        
+        ctx.save();
+        ctx.translate(cx + 20, cy);
+        ctx.rotate(-Math.PI / 4 + attackAngle + walkSwing);
+        
+        if (this.characterType === 'GUANYU') {
+            // 青龙偃月刀
+            this.renderGuanDao(ctx);
+        } else if (this.characterType === 'ZHANGFEI') {
+            // 蛇矛
+            this.renderSnakeSpear(ctx);
+        } else if (this.characterType === 'ZHAOYUN') {
+            // 长枪
+            this.renderLongSpear(ctx);
+        }
         
         ctx.restore();
     }
     
     /**
+     * 绘制青龙偃月刀（关羽）
+     */
+    renderGuanDao(ctx) {
+        // 刀柄
+        ctx.fillStyle = '#8b4513';
+        ctx.fillRect(-5, 0, 10, 60);
+        
+        // 刀身
+        ctx.fillStyle = this.weaponColor;
+        ctx.beginPath();
+        ctx.moveTo(-8, 0);
+        ctx.quadraticCurveTo(-15, 20, -20, 40);
+        ctx.quadraticCurveTo(-10, 45, -5, 40);
+        ctx.lineTo(-5, 0);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 刀刃高光
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-12, 15);
+        ctx.quadraticCurveTo(-16, 25, -18, 35);
+        ctx.stroke();
+        
+        // 刀缨（红色装饰）
+        ctx.fillStyle = '#c41e3a';
+        ctx.beginPath();
+        ctx.arc(0, 5, 8, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    /**
+     * 绘制蛇矛（张飞）
+     */
+    renderSnakeSpear(ctx) {
+        // 矛柄
+        ctx.fillStyle = '#4a3728';
+        ctx.fillRect(-4, 0, 8, 70);
+        
+        // 蛇矛头（弯曲形状）
+        ctx.fillStyle = this.weaponColor;
+        ctx.beginPath();
+        ctx.moveTo(-6, 0);
+        ctx.quadraticCurveTo(-15, 15, -20, 30);
+        ctx.quadraticCurveTo(-10, 25, -5, 15);
+        ctx.lineTo(-5, 0);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 另一侧矛刃
+        ctx.beginPath();
+        ctx.moveTo(6, 0);
+        ctx.quadraticCurveTo(15, 15, 20, 30);
+        ctx.quadraticCurveTo(10, 25, 5, 15);
+        ctx.lineTo(5, 0);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 金属光泽
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-12, 20);
+        ctx.lineTo(-8, 25);
+        ctx.stroke();
+    }
+    
+    /**
+     * 绘制长枪（赵云）
+     */
+    renderLongSpear(ctx) {
+        // 枪杆
+        ctx.fillStyle = '#6b4423';
+        ctx.fillRect(-3, 0, 6, 80);
+        
+        // 枪头
+        ctx.fillStyle = this.weaponColor;
+        ctx.beginPath();
+        ctx.moveTo(-5, 0);
+        ctx.lineTo(0, -35);
+        ctx.lineTo(5, 0);
+        ctx.closePath();
+        ctx.fill();
+        
+        // 枪缨（红色）
+        ctx.fillStyle = '#c41e3a';
+        ctx.beginPath();
+        ctx.moveTo(-8, 5);
+        ctx.quadraticCurveTo(0, -10, 8, 5);
+        ctx.quadraticCurveTo(0, 15, -8, 5);
+        ctx.fill();
+        
+        // 枪尖高光
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, -30);
+        ctx.lineTo(0, -10);
+        ctx.stroke();
+    }
+    
+    /**
+     * 绘制腰带
+     */
+    renderBelt(ctx, cx, cy) {
+        ctx.fillStyle = this.accentColor;
+        ctx.fillRect(cx - 18, cy + 10, 36, 8);
+        
+        // 腰带扣
+        ctx.fillStyle = '#ffd700';
+        ctx.fillRect(cx - 5, cy + 8, 10, 12);
+    }
+    
+    /**
      * 渲染血条
-     * @param {CanvasRenderingContext2D} ctx
      */
     renderHealthBar(ctx) {
         const barWidth = 60;
@@ -314,12 +668,17 @@ class Player {
         const y = this.y - 15;
         
         // 背景
-        ctx.fillStyle = '#333';
+        ctx.fillStyle = '#2c3e50';
         ctx.fillRect(x, y, barWidth, barHeight);
         
-        // 血量
+        // 血量渐变
         const healthPercent = this.health / this.maxHealth;
-        ctx.fillStyle = healthPercent > 0.5 ? '#2ecc71' : healthPercent > 0.25 ? '#f39c12' : '#e74c3c';
+        const gradient = ctx.createLinearGradient(x, y, x + barWidth, y);
+        gradient.addColorStop(0, '#e74c3c');
+        gradient.addColorStop(0.5, '#e67e22');
+        gradient.addColorStop(1, '#f39c12');
+        
+        ctx.fillStyle = gradient;
         ctx.fillRect(x, y, barWidth * healthPercent, barHeight);
         
         // 边框
@@ -330,7 +689,6 @@ class Player {
     
     /**
      * 渲染法力条
-     * @param {CanvasRenderingContext2D} ctx
      */
     renderManaBar(ctx) {
         const barWidth = 60;
@@ -338,19 +696,25 @@ class Player {
         const x = this.x;
         const y = this.y - 8;
         
-        // 背景
-        ctx.fillStyle = '#333';
+        ctx.fillStyle = '#2c3e50';
         ctx.fillRect(x, y, barWidth, barHeight);
         
-        // 法力
         const manaPercent = this.mana / this.maxMana;
-        ctx.fillStyle = '#3498db';
+        const gradient = ctx.createLinearGradient(x, y, x + barWidth, y);
+        gradient.addColorStop(0, '#3498db');
+        gradient.addColorStop(0.5, '#2980b9');
+        gradient.addColorStop(1, '#1abc9c');
+        
+        ctx.fillStyle = gradient;
         ctx.fillRect(x, y, barWidth * manaPercent, barHeight);
+        
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, barWidth, barHeight);
     }
     
     /**
      * 获取碰撞体
-     * @returns {object}
      */
     getHitbox() {
         return this.hitbox;
@@ -358,7 +722,6 @@ class Player {
     
     /**
      * 获取攻击框
-     * @returns {object}
      */
     getAttackBox() {
         return this.attackBox;
@@ -377,8 +740,11 @@ class Player {
         this.y = 400;
         this.velocityX = 0;
         this.velocityY = 0;
+        this.changeState('idle');
     }
 }
 
 // 导出
 window.Player = Player;
+window.CharacterConfig = CharacterConfig;
+window.AnimationFrames = AnimationFrames;
