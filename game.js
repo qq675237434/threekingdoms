@@ -25,51 +25,68 @@ class Game {
      * 初始化游戏
      */
     init() {
-        // 获取 Canvas
-        this.canvas = document.getElementById('gameCanvas');
-        if (!this.canvas) {
-            console.error('Canvas not found!');
-            return;
+        try {
+            // 获取 Canvas
+            this.canvas = document.getElementById('gameCanvas');
+            if (!this.canvas) {
+                console.error('Canvas not found!');
+                this.hideLoadingScreen();
+                return;
+            }
+            this.ctx = this.canvas.getContext('2d');
+            
+            // 初始化游戏循环
+            this.gameLoop = new GameLoop();
+            
+            // 初始化场景管理器
+            this.sceneManager = new SceneManager();
+            this.sceneManager.init(this.canvas);
+            
+            // 初始化 HUD
+            this.hud = new HUD();
+            this.hud.init(this.canvas);
+            
+            // 先创建玩家（场景 onEnter 需要）
+            this.createPlayer(false);
+            
+            // 创建场景
+            this.createScenes();
+            
+            // 将玩家添加到场景
+            this.addPlayerToScene();
+            
+            // 创建敌人生成器
+            this.enemySpawner = new EnemySpawner(this.sceneManager.getCurrentScene());
+            this.enemySpawner.addSpawnPoint({ x: 650, y: 400 });
+            this.enemySpawner.addSpawnPoint({ x: 750, y: 400 });
+            
+            // 注册游戏循环回调
+            this.gameLoop.onUpdate((deltaTime) => this.update(deltaTime));
+            this.gameLoop.onRender(() => this.render());
+            
+            // 设置输入监听
+            this.setupInput();
+            
+            // 隐藏加载屏幕
+            this.hideLoadingScreen();
+            
+            this.isInitialized = true;
+            console.log('游戏初始化完成!');
+        } catch (e) {
+            console.error('游戏初始化失败:', e);
+            this.hideLoadingScreen();
+            throw e;
         }
-        this.ctx = this.canvas.getContext('2d');
-        
-        // 初始化游戏循环
-        this.gameLoop = new GameLoop();
-        
-        // 初始化场景管理器
-        this.sceneManager = new SceneManager();
-        this.sceneManager.init(this.canvas);
-        
-        // 初始化 HUD
-        this.hud = new HUD();
-        this.hud.init(this.canvas);
-        
-        // 创建场景
-        this.createScenes();
-        
-        // 创建玩家
-        this.createPlayer();
-        
-        // 创建敌人生成器
-        this.enemySpawner = new EnemySpawner(this.sceneManager.getCurrentScene());
-        this.enemySpawner.addSpawnPoint({ x: 650, y: 400 });
-        this.enemySpawner.addSpawnPoint({ x: 750, y: 400 });
-        
-        // 注册游戏循环回调
-        this.gameLoop.onUpdate((deltaTime) => this.update(deltaTime));
-        this.gameLoop.onRender(() => this.render());
-        
-        // 设置输入监听
-        this.setupInput();
-        
-        // 隐藏加载屏幕
+    }
+    
+    /**
+     * 隐藏加载屏幕
+     */
+    hideLoadingScreen() {
         const loadingScreen = document.getElementById('loadingScreen');
         if (loadingScreen) {
             loadingScreen.classList.add('hidden');
         }
-        
-        this.isInitialized = true;
-        console.log('游戏初始化完成!');
     }
     
     /**
@@ -93,8 +110,9 @@ class Game {
     
     /**
      * 创建玩家
+     * @param {boolean} addToScene - 是否添加到当前场景（场景创建后为 true）
      */
-    createPlayer() {
+    createPlayer(addToScene = false) {
         this.player = new Player({
             name: '关羽',
             x: 100,
@@ -105,8 +123,19 @@ class Game {
             speed: 220
         });
         
-        // 将玩家添加到场景
-        this.sceneManager.getCurrentScene().addEntity(this.player);
+        // 如果场景已存在，将玩家添加到场景
+        if (addToScene && this.sceneManager && this.sceneManager.getCurrentScene()) {
+            this.sceneManager.getCurrentScene().addEntity(this.player);
+        }
+    }
+    
+    /**
+     * 将玩家添加到场景
+     */
+    addPlayerToScene() {
+        if (this.player && this.sceneManager && this.sceneManager.getCurrentScene()) {
+            this.sceneManager.getCurrentScene().addEntity(this.player);
+        }
     }
     
     /**
@@ -316,25 +345,30 @@ class Game {
      * 重新开始游戏
      */
     restart() {
-        // 清理场景
-        const currentScene = this.sceneManager.getCurrentScene();
-        currentScene.clearEntities();
-        
-        // 重置 HUD
-        this.hud.reset();
-        
-        // 重新创建玩家
-        this.createPlayer();
-        
-        // 重置敌人生成器
-        this.enemySpawner.clearAll();
-        this.enemySpawner.spawnWave(3, { type: 'soldier', name: '士兵' });
-        
-        // 重新开始
-        this.isRunning = true;
-        this.gameLoop.start();
-        
-        console.log('游戏重新开始!');
+        try {
+            // 清理场景
+            const currentScene = this.sceneManager.getCurrentScene();
+            currentScene.clearEntities();
+            
+            // 重置 HUD
+            this.hud.reset();
+            
+            // 重新创建玩家并添加到场景
+            this.createPlayer(false);
+            this.addPlayerToScene();
+            
+            // 重置敌人生成器
+            this.enemySpawner.clearAll();
+            this.enemySpawner.spawnWave(3, { type: 'soldier', name: '士兵' });
+            
+            // 重新开始
+            this.isRunning = true;
+            this.gameLoop.start();
+            
+            console.log('游戏重新开始!');
+        } catch (e) {
+            console.error('游戏重启失败:', e);
+        }
     }
     
     /**
